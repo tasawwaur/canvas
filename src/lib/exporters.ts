@@ -277,6 +277,9 @@ const drawSymbolToCanvas = (ctx: CanvasRenderingContext2D, type: string, x: numb
     case 'mosque':
       ctx.arc(0, 0, size/2, Math.PI, 0);
       ctx.stroke();
+      case "mosque":
+      ctx.arc(0, 0, size/2, Math.PI, 0);
+      ctx.stroke();
       break;
   }
   ctx.restore();
@@ -289,26 +292,34 @@ export const renderProjectToOffscreenCanvas = (
   showGrid: boolean,
   showDimensions: boolean,
   selectedFeatureIds?: string[],
-  onlyDrawSelected = false
+  onlyDrawSelected = false,
+  viewportBounds?: { minX: number; maxX: number; minY: number; maxY: number }
 ): Promise<HTMLCanvasElement> => {
   return new Promise((resolve) => {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     
-    // Crop boundaries to selected features if we are drawing only selected
-    const hasSelection = selectedFeatureIds && selectedFeatureIds.length > 0;
-    const targetFeatures = onlyDrawSelected && hasSelection 
-      ? project.features.filter(f => selectedFeatureIds.includes(f.id))
-      : project.features;
+    if (viewportBounds) {
+      minX = viewportBounds.minX;
+      maxX = viewportBounds.maxX;
+      minY = viewportBounds.minY;
+      maxY = viewportBounds.maxY;
+    } else {
+      // Crop boundaries to selected features if we are drawing only selected
+      const hasSelection = selectedFeatureIds && selectedFeatureIds.length > 0;
+      const targetFeatures = onlyDrawSelected && hasSelection 
+        ? project.features.filter(f => selectedFeatureIds.includes(f.id))
+        : project.features;
 
-    targetFeatures.forEach(f => {
-      const layer = project.layers.find(l => l.id === f.layerId);
-      if (layer && !layer.visible) return;
-      const b = geometryBounds(f.geometry);
-      if (b.minX < minX) minX = b.minX;
-      if (b.minY < minY) minY = b.minY;
-      if (b.maxX > maxX) maxX = b.maxX;
-      if (b.maxY > maxY) maxY = b.maxY;
-    });
+      targetFeatures.forEach(f => {
+        const layer = project.layers.find(l => l.id === f.layerId);
+        if (layer && !layer.visible) return;
+        const b = geometryBounds(f.geometry);
+        if (b.minX < minX) minX = b.minX;
+        if (b.minY < minY) minY = b.minY;
+        if (b.maxX > maxX) maxX = b.maxX;
+        if (b.maxY > maxY) maxY = b.maxY;
+      });
+    }
 
     if (minX === Infinity) {
       minX = -100; minY = -100; maxX = 100; maxY = 100;
@@ -602,14 +613,27 @@ export const renderProjectToOffscreenCanvas = (
   });
 };
 
-export const exportToPNG = (project: Project, filename: string, selectedFeatureIds?: string[]): void => {
-  let onlyDrawSelected = false;
-  if (selectedFeatureIds && selectedFeatureIds.length > 0) {
-    onlyDrawSelected = window.confirm("Export Mode Selection:\n\nClick 'OK' to download ONLY the selected area/plots.\nClick 'Cancel' to download the Full Map.");
+export const exportToPNG = (
+  project: Project,
+  filename: string,
+  selectedFeatureIds?: string[],
+  viewportBounds?: { minX: number; maxX: number; minY: number; maxY: number }
+): void => {
+  const hasSelection = selectedFeatureIds && selectedFeatureIds.length > 0;
+  let choice = "1";
+  
+  if (hasSelection && viewportBounds) {
+    choice = window.prompt("Choose Export Area (Download Area Select Karein):\n\nType '1' for Full Map (Poora Map download)\nType '2' for Selected Area Only (Sirf select kiye plots)\nType '3' for Current Screen View (Jitna screen par zoom kiya dikh raha hai)\n\nEnter choice (1, 2 or 3):", "1") || "1";
+  } else if (viewportBounds) {
+    choice = window.prompt("Choose Export Area (Download Area Select Karein):\n\nType '1' for Full Map (Poora Map download)\nType '3' for Current Screen View (Jitna screen par zoom kiya dikh raha hai)\n\nEnter choice (1 or 3):", "1") || "1";
   }
+
+  const onlyDrawSelected = choice === "2";
+  const cropToView = choice === "3" ? viewportBounds : undefined;
+
   const width = 8192;
   const height = 6144;
-  renderProjectToOffscreenCanvas(project, width, height, project.settings.showGrid, true, selectedFeatureIds, onlyDrawSelected).then(offscreen => {
+  renderProjectToOffscreenCanvas(project, width, height, project.settings.showGrid, true, selectedFeatureIds, onlyDrawSelected, cropToView).then(offscreen => {
     const link = document.createElement("a");
     link.download = filename.endsWith(".png") ? filename : `${filename}.png`;
     link.href = offscreen.toDataURL("image/png");
@@ -617,14 +641,28 @@ export const exportToPNG = (project: Project, filename: string, selectedFeatureI
   });
 };
 
-export const exportToJPEG = (project: Project, filename: string, selectedFeatureIds?: string[], quality = 0.95): void => {
-  let onlyDrawSelected = false;
-  if (selectedFeatureIds && selectedFeatureIds.length > 0) {
-    onlyDrawSelected = window.confirm("Export Mode Selection:\n\nClick 'OK' to download ONLY the selected area/plots.\nClick 'Cancel' to download the Full Map.");
+export const exportToJPEG = (
+  project: Project,
+  filename: string,
+  selectedFeatureIds?: string[],
+  viewportBounds?: { minX: number; maxX: number; minY: number; maxY: number },
+  quality = 0.95
+): void => {
+  const hasSelection = selectedFeatureIds && selectedFeatureIds.length > 0;
+  let choice = "1";
+  
+  if (hasSelection && viewportBounds) {
+    choice = window.prompt("Choose Export Area (Download Area Select Karein):\n\nType '1' for Full Map (Poora Map download)\nType '2' for Selected Area Only (Sirf select kiye plots)\nType '3' for Current Screen View (Jitna screen par zoom kiya dikh raha hai)\n\nEnter choice (1, 2 or 3):", "1") || "1";
+  } else if (viewportBounds) {
+    choice = window.prompt("Choose Export Area (Download Area Select Karein):\n\nType '1' for Full Map (Poora Map download)\nType '3' for Current Screen View (Jitna screen par zoom kiya dikh raha hai)\n\nEnter choice (1 or 3):", "1") || "1";
   }
+
+  const onlyDrawSelected = choice === "2";
+  const cropToView = choice === "3" ? viewportBounds : undefined;
+
   const width = 8192;
   const height = 6144;
-  renderProjectToOffscreenCanvas(project, width, height, project.settings.showGrid, true, selectedFeatureIds, onlyDrawSelected).then(offscreen => {
+  renderProjectToOffscreenCanvas(project, width, height, project.settings.showGrid, true, selectedFeatureIds, onlyDrawSelected, cropToView).then(offscreen => {
     const link = document.createElement("a");
     link.download = filename.endsWith(".jpg") || filename.endsWith(".jpeg") ? filename : `${filename}.jpg`;
     link.href = offscreen.toDataURL("image/jpeg", quality);
@@ -632,26 +670,46 @@ export const exportToJPEG = (project: Project, filename: string, selectedFeature
   });
 };
 
-export const exportToPDF = (project: Project, canvas: HTMLCanvasElement, settings: PrintSettings, selectedFeatureIds?: string[]): void => {
-  let onlyDrawSelected = false;
-  if (selectedFeatureIds && selectedFeatureIds.length > 0) {
-    onlyDrawSelected = window.confirm("Export Mode Selection:\n\nClick 'OK' to download ONLY the selected area/plots.\nClick 'Cancel' to download the Full Map.");
+export const exportToPDF = (
+  project: Project,
+  canvas: HTMLCanvasElement,
+  settings: PrintSettings,
+  selectedFeatureIds?: string[],
+  viewportBounds?: { minX: number; maxX: number; minY: number; maxY: number }
+): void => {
+  const hasSelection = selectedFeatureIds && selectedFeatureIds.length > 0;
+  let choice = "1";
+  
+  if (hasSelection && viewportBounds) {
+    choice = window.prompt("Choose Export Area (Download Area Select Karein):\n\nType '1' for Full Map (Poora Map download)\nType '2' for Selected Area Only (Sirf select kiye plots)\nType '3' for Current Screen View (Jitna screen par zoom kiya dikh raha hai)\n\nEnter choice (1, 2 or 3):", "1") || "1";
+  } else if (viewportBounds) {
+    choice = window.prompt("Choose Export Area (Download Area Select Karein):\n\nType '1' for Full Map (Poora Map download)\nType '3' for Current Screen View (Jitna screen par zoom kiya dikh raha hai)\n\nEnter choice (1 or 3):", "1") || "1";
   }
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  const targetFeatures = onlyDrawSelected && selectedFeatureIds && selectedFeatureIds.length > 0
-    ? project.features.filter(f => selectedFeatureIds.includes(f.id))
-    : project.features;
+  const onlyDrawSelected = choice === "2";
+  const cropToView = choice === "3" ? viewportBounds : undefined;
 
-  targetFeatures.forEach(f => {
-    const layer = project.layers.find(l => l.id === f.layerId);
-    if (layer && !layer.visible) return;
-    const b = geometryBounds(f.geometry);
-    if (b.minX < minX) minX = b.minX;
-    if (b.minY < minY) minY = b.minY;
-    if (b.maxX > maxX) maxX = b.maxX;
-    if (b.maxY > maxY) maxY = b.maxY;
-  });
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  if (cropToView) {
+    minX = cropToView.minX;
+    maxX = cropToView.maxX;
+    minY = cropToView.minY;
+    maxY = cropToView.maxY;
+  } else {
+    const targetFeatures = onlyDrawSelected && hasSelection 
+      ? project.features.filter(f => selectedFeatureIds.includes(f.id))
+      : project.features;
+
+    targetFeatures.forEach(f => {
+      const layer = project.layers.find(l => l.id === f.layerId);
+      if (layer && !layer.visible) return;
+      const b = geometryBounds(f.geometry);
+      if (b.minX < minX) minX = b.minX;
+      if (b.minY < minY) minY = b.minY;
+      if (b.maxX > maxX) maxX = b.maxX;
+      if (b.maxY > maxY) maxY = b.maxY;
+    });
+  }
 
   if (minX === Infinity) {
     minX = -100; minY = -100; maxX = 100; maxY = 100;
@@ -669,7 +727,7 @@ export const exportToPDF = (project: Project, canvas: HTMLCanvasElement, setting
   const canvasWidth = Math.round(pdfWidth * pxPerMm);
   const canvasHeight = Math.round(pdfHeight * pxPerMm);
 
-  renderProjectToOffscreenCanvas(project, canvasWidth, canvasHeight, project.settings.showGrid, settings.showDimensions, selectedFeatureIds, onlyDrawSelected).then(offscreen => {
+  renderProjectToOffscreenCanvas(project, canvasWidth, canvasHeight, project.settings.showGrid, settings.showDimensions, selectedFeatureIds, onlyDrawSelected, cropToView).then(offscreen => {
     const imgData = offscreen.toDataURL("image/jpeg", 0.95);
     pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
     pdf.save(`${settings.title || project.name}.pdf`);

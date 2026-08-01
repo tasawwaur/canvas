@@ -784,6 +784,17 @@ export const App: React.FC = () => {
     setViewport({ x: 0, y: 0, scale: 1 });
   };
 
+  const getViewportBounds = () => {
+    const halfW = canvasSize.width / 2 / viewport.scale;
+    const halfH = canvasSize.height / 2 / viewport.scale;
+    return {
+      minX: viewport.x - halfW,
+      maxX: viewport.x + halfW,
+      minY: viewport.y - halfH,
+      maxY: viewport.y + halfH
+    };
+  };
+
   return (
     <div className="app-shell">
       <RibbonMenu 
@@ -806,11 +817,11 @@ export const App: React.FC = () => {
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
-        onExportPNG={() => exportToPNG(project, project.name, selectedFeatureIds)}
-        onExportJPEG={() => exportToJPEG(project, project.name, selectedFeatureIds)}
+        onExportPNG={() => exportToPNG(project, project.name, selectedFeatureIds, getViewportBounds())}
+        onExportJPEG={() => exportToJPEG(project, project.name, selectedFeatureIds, getViewportBounds())}
         onExportPDF={() => canvasRef && exportToPDF(project, canvasRef, {
           paperSize: 'A4', orientation: 'landscape', scale: 100, fitToPage: true, showGrid: false, showDimensions: true, title: project.name
-        }, selectedFeatureIds)}
+        }, selectedFeatureIds, getViewportBounds())}
         onExportSVG={handleDownloadSVG}
         onExportDXF={handleDownloadDXF}
         onExportGeoJSON={handleDownloadGeoJSON}
@@ -957,7 +968,7 @@ export const App: React.FC = () => {
           onPrint={(printSettings) => {
              setShowPrintDialog(false);
              if (canvasRef) {
-                exportToPDF(project, canvasRef, printSettings, selectedFeatureIds);
+                exportToPDF(project, canvasRef, printSettings, selectedFeatureIds, getViewportBounds());
              }
           }}
         />
