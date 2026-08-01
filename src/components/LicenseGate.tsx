@@ -56,11 +56,25 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
     }
 
     if (cleanKey === TRIAL_7DAY_KEY) {
+      // Get or create unique device ID for single user locking
+      let deviceId = localStorage.getItem('app_device_id');
+      if (!deviceId) {
+        deviceId = 'DEV-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+        localStorage.setItem('app_device_id', deviceId);
+      }
+
+      const boundDevice = localStorage.getItem('app_key_bound_device');
+      if (boundDevice && boundDevice !== deviceId) {
+        setErrorMsg('Ye 7-Day Demo Key dusre user/device par already active ho chuki hai!');
+        return;
+      }
+
       const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
       localStorage.setItem('app_license_key', TRIAL_7DAY_KEY);
       localStorage.setItem('app_license_expiry', sevenDaysFromNow.toString());
+      localStorage.setItem('app_key_bound_device', deviceId);
       setIsAuthenticated(true);
-      setExpiryInfo('7 Days Free Trial Activated');
+      setExpiryInfo('7 Days Free Trial (Single User)');
       setErrorMsg('');
       return;
     }
