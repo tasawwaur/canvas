@@ -24,6 +24,7 @@ import {
   projectToSvg, projectToDxf, projectToGeoJson, projectToCsv,
   renderProjectToOffscreenCanvas
 } from './lib/exporters';
+import { LicenseGate } from './components/LicenseGate';
 import './styles.css';
 
 // Custom hook for undo/redo with jump support
@@ -818,7 +819,8 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="app-shell">
+    <LicenseGate>
+      <div className="app-shell">
       <RibbonMenu 
         activeTab={activeRibbonTab} 
         onTabChange={setActiveRibbonTab} 
@@ -1030,5 +1032,6 @@ export const App: React.FC = () => {
         />
       )}
     </div>
+  </LicenseGate>
   );
 };
