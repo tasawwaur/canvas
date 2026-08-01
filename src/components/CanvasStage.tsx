@@ -995,14 +995,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
       return;
     }
 
-    if (t === 'arrow') {
-      // Arrow: click anywhere to place immediately with default size
-      // OR drag to custom size — start draft for drag
-      onDraftChange({ tool: 'arrow', start: snapped, current: { x: snapped.x + 30, y: snapped.y } });
-      return;
-    }
-
-    if (['line', 'rectangle', 'circle', 'divider', 'exportCrop'].includes(t)) {
+    if (['line', 'rectangle', 'circle', 'divider', 'exportCrop', 'arrow'].includes(t)) {
       onDraftChange({ tool: t, start: snapped, current: snapped });
       return;
     }
@@ -1341,14 +1334,36 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
       const vp = viewportRef.current;
       const hasSelection = selectedFeatureIdsRef.current.length > 0;
 
+      const d = draftRef.current;
+      if (d && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        const nudge = 5 / vp.scale;
+        let curPt = { x: 0, y: 0 };
+        if ('points' in d) {
+          const last = d.points[d.points.length - 1];
+          curPt = {
+            x: d.current?.x ?? last.x,
+            y: d.current?.y ?? last.y
+          };
+        } else if ('start' in d) {
+          curPt = {
+            x: d.current?.x ?? d.start.x,
+            y: d.current?.y ?? d.start.y
+          };
+        }
+
+        if (e.key === 'ArrowUp') curPt.y -= nudge;
+        else if (e.key === 'ArrowDown') curPt.y += nudge;
+        else if (e.key === 'ArrowLeft') curPt.x -= nudge;
+        else if (e.key === 'ArrowRight') curPt.x += nudge;
+
+        onDraftChange({ ...d, current: curPt } as any);
+        return;
+      }
+
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        const d = draftRef.current;
-        if (d && 'points' in d && d.points.length > 0) {
-          const nudge = 5 / vp.scale;
-          const last = d.points[d.points.length - 1];
-          onDraftChange({ ...d, current: { x: (d.current?.x ?? last.x), y: (d.current?.y ?? last.y) - nudge } });
-        } else if (hasSelection) {
+        if (hasSelection) {
           const nudge = 5 / vp.scale;
           selectedFeatureIdsRef.current.forEach(id => {
             onUpdateFeature(id, f => ({ ...f, geometry: translateGeometry(f.geometry, 0, -nudge), updatedAt: new Date().toISOString() }));
@@ -1359,12 +1374,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         }
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        const d = draftRef.current;
-        if (d && 'points' in d && d.points.length > 0) {
-          const nudge = 5 / vp.scale;
-          const last = d.points[d.points.length - 1];
-          onDraftChange({ ...d, current: { x: (d.current?.x ?? last.x), y: (d.current?.y ?? last.y) + nudge } });
-        } else if (hasSelection) {
+        if (hasSelection) {
           const nudge = 5 / vp.scale;
           selectedFeatureIdsRef.current.forEach(id => {
             onUpdateFeature(id, f => ({ ...f, geometry: translateGeometry(f.geometry, 0, nudge), updatedAt: new Date().toISOString() }));
@@ -1375,12 +1385,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         }
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        const d = draftRef.current;
-        if (d && 'points' in d && d.points.length > 0) {
-          const nudge = 5 / vp.scale;
-          const last = d.points[d.points.length - 1];
-          onDraftChange({ ...d, current: { x: (d.current?.x ?? last.x) - nudge, y: (d.current?.y ?? last.y) } });
-        } else if (hasSelection) {
+        if (hasSelection) {
           const nudge = 5 / vp.scale;
           selectedFeatureIdsRef.current.forEach(id => {
             onUpdateFeature(id, f => ({ ...f, geometry: translateGeometry(f.geometry, -nudge, 0), updatedAt: new Date().toISOString() }));
@@ -1391,12 +1396,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         }
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        const d = draftRef.current;
-        if (d && 'points' in d && d.points.length > 0) {
-          const nudge = 5 / vp.scale;
-          const last = d.points[d.points.length - 1];
-          onDraftChange({ ...d, current: { x: (d.current?.x ?? last.x) + nudge, y: (d.current?.y ?? last.y) } });
-        } else if (hasSelection) {
+        if (hasSelection) {
           const nudge = 5 / vp.scale;
           selectedFeatureIdsRef.current.forEach(id => {
             onUpdateFeature(id, f => ({ ...f, geometry: translateGeometry(f.geometry, nudge, 0), updatedAt: new Date().toISOString() }));

@@ -708,39 +708,6 @@ export const App: React.FC = () => {
   };
 
   const handleToolChange = (newTool: Tool) => {
-    if (newTool === 'arrow') {
-      const length = 60;
-      const start = { x: viewport.x - length / 2, y: viewport.y };
-      const end = { x: viewport.x + length / 2, y: viewport.y };
-      
-      const newF: Feature = {
-        id: createId('feature'),
-        layerId: activeLayerId,
-        name: 'Arrow Indicator 1',
-        geometry: {
-          type: 'arrow',
-          start,
-          end,
-          headSize: 12
-        },
-        style: { borderColor: '#ef4444', lineWidth: 3 },
-        properties: { notes: 'Arrow pointer symbol.' },
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-        zIndex: 4,
-        rotation: 0,
-        scale: 1
-      };
-      
-      commit({
-        ...project,
-        features: [...project.features, newF],
-        updatedAt: nowIso()
-      });
-      setSelectedFeatureIds([newF.id]);
-      setTool('select');
-      return;
-    }
     setTool(newTool);
   };
 
