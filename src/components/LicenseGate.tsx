@@ -14,32 +14,49 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
   const [licenseKey, setLicenseKey] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
-  const [expiryInfo, setExpiryInfo] = useState<string>('');
+  const [remainingTime, setRemainingTime] = useState<string>('');
 
   useEffect(() => {
-    const savedKey = localStorage.getItem('app_license_key');
-    const savedExpiry = localStorage.getItem('app_license_expiry');
+    const updateCountdown = () => {
+      const savedKey = localStorage.getItem('app_license_key');
+      const savedExpiry = localStorage.getItem('app_license_expiry');
 
-    if (savedKey) {
-      if (savedKey === MASTER_KEY) {
-        setIsAuthenticated(true);
-        setExpiryInfo('Unlimited Access (Admin)');
-        return;
-      }
-
-      if (savedExpiry) {
-        const expTime = parseInt(savedExpiry, 10);
-        if (Date.now() < expTime) {
+      if (savedKey) {
+        if (savedKey === MASTER_KEY) {
           setIsAuthenticated(true);
-          const daysLeft = Math.ceil((expTime - Date.now()) / (1000 * 60 * 60 * 24));
-          setExpiryInfo(`Trial Active (${daysLeft} days remaining)`);
-        } else {
-          setErrorMsg('Aapka 7-Day Free Trial Expire ho gaya hai! Activation Key dalein.');
-          localStorage.removeItem('app_license_key');
-          localStorage.removeItem('app_license_expiry');
+          setRemainingTime('Unlimited');
+          return;
+        }
+
+        if (savedExpiry) {
+          const expTime = parseInt(savedExpiry, 10);
+          const diff = expTime - Date.now();
+
+          if (diff > 0) {
+            setIsAuthenticated(true);
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((diff / 1000 / 60) % 60);
+            const seconds = Math.floor((diff / 1000) % 60);
+
+            const timerStr = days > 0 
+              ? `${days}d ${hours}h ${minutes}m ${seconds}s` 
+              : `${hours}h ${minutes}m ${seconds}s`;
+
+            setRemainingTime(timerStr);
+          } else {
+            setIsAuthenticated(false);
+            setErrorMsg('Aapka 7-Day Free Trial Expire ho gaya hai!');
+            localStorage.removeItem('app_license_key');
+            localStorage.removeItem('app_license_expiry');
+          }
         }
       }
-    }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleActivate = (e: React.FormEvent) => {
@@ -50,13 +67,12 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
       localStorage.setItem('app_license_key', MASTER_KEY);
       localStorage.removeItem('app_license_expiry');
       setIsAuthenticated(true);
-      setExpiryInfo('Unlimited Access (Admin)');
+      setRemainingTime('Unlimited');
       setErrorMsg('');
       return;
     }
 
     if (cleanKey === TRIAL_7DAY_KEY) {
-      // Get or create unique device ID for single user locking
       let deviceId = localStorage.getItem('app_device_id');
       if (!deviceId) {
         deviceId = 'DEV-' + Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -74,7 +90,6 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
       localStorage.setItem('app_license_expiry', sevenDaysFromNow.toString());
       localStorage.setItem('app_key_bound_device', deviceId);
       setIsAuthenticated(true);
-      setExpiryInfo('7 Days Free Trial (Single User)');
       setErrorMsg('');
       return;
     }
@@ -92,30 +107,50 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
   if (isAuthenticated) {
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-        <button
-          onClick={handleLogout}
-          title="Logout License Session"
-          style={{
-            position: 'fixed',
-            top: '8px',
-            right: '16px',
-            zIndex: 9999,
-            backgroundColor: '#ef4444',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '4px 10px',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}
-        >
-          🔒 Logout Key ({expiryInfo})
-        </button>
+        <div style={{
+          position: 'fixed',
+          top: '6px',
+          right: '16px',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          {remainingTime && remainingTime !== 'Unlimited' && (
+            <div style={{
+              backgroundColor: '#1e293b',
+              color: '#38bdf8',
+              border: '1px solid #38bdf840',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              fontSize: '12px',
+              fontWeight: 600,
+              fontFamily: 'monospace',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              ⏱️ {remainingTime}
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            title="Logout License"
+            style={{
+              backgroundColor: '#ef4444',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+            }}
+          >
+            Logout
+          </button>
+        </div>
         {children}
       </div>
     );
