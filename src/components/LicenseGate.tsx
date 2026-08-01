@@ -165,33 +165,65 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
         </p>
 
         <form onSubmit={handleActivate}>
-          <input 
-            type="text"
-            placeholder="Paste License Key Here (Ctrl + V)"
-            value={licenseKey}
-            onChange={(e) => setLicenseKey(e.target.value)}
-            onPaste={(e) => {
-              const pastedText = e.clipboardData.getData('text');
-              if (pastedText) {
-                setLicenseKey(pastedText.trim());
-              }
-            }}
-            autoFocus
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              backgroundColor: '#1f2937',
-              border: '1px solid #374151',
-              borderRadius: '8px',
-              color: '#fff',
-              fontSize: '14px',
-              outline: 'none',
-              boxSizing: 'border-box',
-              marginBottom: '16px',
-              textAlign: 'center',
-              letterSpacing: '1px'
-            }}
-          />
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <input 
+              type="text"
+              placeholder="Enter / Paste License Key"
+              value={licenseKey}
+              onChange={(e) => setLicenseKey(e.target.value)}
+              onPaste={(e) => {
+                const pastedText = e.clipboardData.getData('text');
+                if (pastedText) {
+                  setLicenseKey(pastedText.trim());
+                }
+              }}
+              autoFocus
+              style={{
+                flex: 1,
+                padding: '12px 14px',
+                backgroundColor: '#1f2937',
+                border: '1px solid #374151',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '13px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                textAlign: 'center',
+                letterSpacing: '0.5px'
+              }}
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const text = await navigator.clipboard.readText();
+                  if (text) {
+                    setLicenseKey(text.trim());
+                  }
+                } catch (err) {
+                  // Fallback for browsers
+                  const key = prompt("Paste your License Key here:");
+                  if (key) setLicenseKey(key.trim());
+                }
+              }}
+              style={{
+                backgroundColor: '#3b82f6',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '0 16px',
+                fontWeight: 600,
+                fontSize: '13px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              📋 Auto Paste
+            </button>
+          </div>
 
           {errorMsg && (
             <div style={{ 
