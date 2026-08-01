@@ -7,6 +7,7 @@ type AILayoutGeneratorProps = {
   onClose: () => void;
   onCommitLayout: (features: Feature[]) => void;
   layers: Layer[];
+  onStartBoundaryPlacement?: (settings: { width: number; height: number; unit: string; type: 'plot' | 'colony' }) => void;
 };
 
 type GeneratorSettings = {
@@ -62,7 +63,8 @@ export const AILayoutGenerator: React.FC<AILayoutGeneratorProps> = ({
   open,
   onClose,
   onCommitLayout,
-  layers
+  layers,
+  onStartBoundaryPlacement
 }) => {
   const [settings, setSettings] = useState<GeneratorSettings>({
     landSize: 5,
@@ -82,6 +84,12 @@ export const AILayoutGenerator: React.FC<AILayoutGeneratorProps> = ({
     temple: true,
     mosque: false
   });
+
+  const [activeTab, setActiveTab] = useState<'colony' | 'quick'>('colony');
+  const [quickWidth, setQuickWidth] = useState<number>(30);
+  const [quickHeight, setQuickHeight] = useState<number>(60);
+  const [quickUnit, setQuickUnit] = useState<string>('gaj');
+  const [quickType, setQuickType] = useState<'plot' | 'colony'>('plot');
 
   const [metrics, setMetrics] = useState({
     totalAreaSqm: 0,
@@ -510,207 +518,340 @@ export const AILayoutGenerator: React.FC<AILayoutGeneratorProps> = ({
           </button>
         </div>
 
-        <div className="print-dialog-body" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', overflowY: 'auto' }}>
-          {/* Left panel: Inputs */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '10px' }}>
-            <h4 style={{ color: '#fb923c', borderBottom: '1px solid rgba(148,163,184,0.12)', paddingBottom: '4px' }}>
-              📍 Land & Plot Parameters
-            </h4>
-            
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <div style={{ flex: 2 }}>
-                <label style={{ fontSize: '11px', color: '#94a3b8' }}>Total Land Size</label>
-                <input 
-                  type="number" 
-                  className="prop-input" 
-                  style={{ width: '100%' }}
-                  value={settings.landSize} 
-                  onChange={(e) => setSettings({ ...settings, landSize: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '11px', color: '#94a3b8' }}>Unit</label>
-                <select 
-                  className="prop-select" 
-                  value={settings.landUnit} 
-                  onChange={(e) => setSettings({ ...settings, landUnit: e.target.value })}
-                >
-                  {Object.keys(UNIT_LABELS).map(k => (
-                    <option key={k} value={k}>{UNIT_LABELS[k]}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <div style={{ flex: 2 }}>
-                <label style={{ fontSize: '11px', color: '#94a3b8' }}>Target Plot Size</label>
-                <input 
-                  type="number" 
-                  className="prop-input" 
-                  style={{ width: '100%' }}
-                  value={settings.plotSize} 
-                  onChange={(e) => setSettings({ ...settings, plotSize: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '11px', color: '#94a3b8' }}>Unit</label>
-                <select 
-                  className="prop-select" 
-                  value={settings.plotUnit} 
-                  onChange={(e) => setSettings({ ...settings, plotUnit: e.target.value })}
-                >
-                  <option value="gaj">Gaj</option>
-                  <option value="sqft">Sq Ft</option>
-                  <option value="sqm">Sq Meter</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input 
-                type="checkbox" 
-                id="cornerCheck"
-                checked={settings.cornerPlot} 
-                onChange={(e) => setSettings({ ...settings, cornerPlot: e.target.checked })} 
-              />
-              <label htmlFor="cornerCheck" style={{ fontSize: '12px' }}>Highlight Corner Plots 🟨</label>
-            </div>
-
-            <h4 style={{ color: '#fb923c', borderBottom: '1px solid rgba(148,163,184,0.12)', paddingBottom: '4px', marginTop: '8px' }}>
-              🛣️ Road & Infrastructure
-            </h4>
-
-            <div>
-              <label style={{ fontSize: '11px', color: '#94a3b8' }}>Main Road Width</label>
-              <select 
-                className="prop-select" 
-                style={{ width: '100%' }}
-                value={settings.roadWidth} 
-                onChange={(e) => setSettings({ ...settings, roadWidth: parseInt(e.target.value) })}
-              >
-                <option value="15">15 Ft (Minor)</option>
-                <option value="20">20 Ft (Standard)</option>
-                <option value="25">25 Ft (Colony Arterial)</option>
-                <option value="30">30 Ft (Main Boulevard)</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', gap: '15px' }}>
-              <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <input type="checkbox" checked={settings.laneMarking} onChange={e => setSettings({ ...settings, laneMarking: e.target.checked })} />
-                Lane Marking
-              </label>
-              <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <input type="checkbox" checked={settings.drains} onChange={e => setSettings({ ...settings, drains: e.target.checked })} />
-                Storm Drains
-              </label>
-            </div>
-
-            <h4 style={{ color: '#fb923c', borderBottom: '1px solid rgba(148,163,184,0.12)', paddingBottom: '4px', marginTop: '8px' }}>
-              🏡 Zoning & Reserve Areas
-            </h4>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '11px', color: '#94a3b8' }}>Park Reservation</label>
-                <select 
-                  className="prop-select" 
-                  value={settings.parkPercentage} 
-                  onChange={(e) => setSettings({ ...settings, parkPercentage: parseInt(e.target.value) })}
-                >
-                  <option value="5">5% Park</option>
-                  <option value="10">10% Park</option>
-                  <option value="15">15% Park</option>
-                  <option value="20">20% Park</option>
-                </select>
-              </div>
-
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '11px', color: '#94a3b8' }}>Commercial Shops</label>
-                <select 
-                  className="prop-select" 
-                  value={settings.commercialPercentage} 
-                  onChange={(e) => setSettings({ ...settings, commercialPercentage: parseInt(e.target.value) })}
-                >
-                  <option value="5">5% Shops</option>
-                  <option value="10">10% Shops</option>
-                  <option value="15">15% Shops</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '15px' }}>
-              <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <input type="checkbox" checked={settings.houses} onChange={e => setSettings({ ...settings, houses: e.target.checked })} />
-                Place House Footprints
-              </label>
-            </div>
-
-            <div style={{ display: 'flex', gap: '15px' }}>
-              <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <input type="checkbox" checked={settings.temple} onChange={e => setSettings({ ...settings, temple: e.target.checked, mosque: false })} />
-                Include Temple
-              </label>
-              <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <input type="checkbox" checked={settings.mosque} onChange={e => setSettings({ ...settings, mosque: e.target.checked, temple: false })} />
-                Include Mosque
-              </label>
-            </div>
-          </div>
-
-          {/* Right panel: Live calculation summary */}
-          <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h4 style={{ color: '#14b8a6', borderBottom: '1px solid rgba(148,163,184,0.12)', paddingBottom: '4px' }}>
-              📊 Real-time CAD Calculations
-            </h4>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#94a3b8' }}>Total Land Area:</span>
-                <span style={{ fontWeight: 'bold' }}>{metrics.totalAreaSqm.toLocaleString()} sqm</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#94a3b8' }}>Road Reservation Area:</span>
-                <span>{metrics.roadAreaSqm.toLocaleString()} sqm</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#94a3b8' }}>Park Reservation (Green):</span>
-                <span>{metrics.parkAreaSqm.toLocaleString()} sqm</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#94a3b8' }}>Commercial Zoning (Shops):</span>
-                <span>{metrics.commercialAreaSqm.toLocaleString()} sqm</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderTop: '1px dashed rgba(148,163,184,0.12)', paddingTop: '4px' }}>
-                <span style={{ color: '#94a3b8' }}>Net Residential Plot Area:</span>
-                <span style={{ color: '#14b8a6', fontWeight: 600 }}>{metrics.residentialAreaSqm.toLocaleString()} sqm</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#94a3b8' }}>Remaining Open Spaces:</span>
-                <span>{metrics.remainingAreaSqm.toLocaleString()} sqm</span>
-              </div>
-            </div>
-
-            <div style={{ flex: 1 }} />
-
-            <div style={{ background: 'rgba(20, 184, 166, 0.08)', border: '1px solid rgba(20, 184, 166, 0.2)', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>MAXIMIZED YIELD</div>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#14b8a6' }}>{metrics.estimatedPlots}</div>
-              <div style={{ fontSize: '11px', color: '#94a3b8' }}>Residential Plots Generated</div>
-            </div>
-          </div>
+        {/* Tab switcher */}
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(148, 163, 184, 0.12)', background: 'rgba(0,0,0,0.1)' }}>
+          <button 
+            style={{
+              flex: 1,
+              padding: '12px',
+              background: activeTab === 'colony' ? 'rgba(255,255,255,0.05)' : 'transparent',
+              border: 'none',
+              borderBottom: activeTab === 'colony' ? '2px solid #14b8a6' : 'none',
+              color: activeTab === 'colony' ? '#14b8a6' : '#94a3b8',
+              fontWeight: 600,
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+            onClick={() => setActiveTab('colony')}
+          >
+            🏘️ Smart AI Colony Layout
+          </button>
+          <button 
+            style={{
+              flex: 1,
+              padding: '12px',
+              background: activeTab === 'quick' ? 'rgba(255,255,255,0.05)' : 'transparent',
+              border: 'none',
+              borderBottom: activeTab === 'quick' ? '2px solid #fb923c' : 'none',
+              color: activeTab === 'quick' ? '#fb923c' : '#94a3b8',
+              fontWeight: 600,
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+            onClick={() => setActiveTab('quick')}
+          >
+            ⏹️ Quick Empty Plot / Colony (चकोर बाउंड्री)
+          </button>
         </div>
+
+        {activeTab === 'quick' ? (
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', padding: '20px', overflowY: 'auto' }}>
+            {/* Left side: Inputs */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <h4 style={{ color: '#fb923c', borderBottom: '1px solid rgba(148,163,184,0.12)', paddingBottom: '4px', margin: 0 }}>
+                📏 Set Custom Box Dimensions (चकोर साइज)
+              </h4>
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Boundary Type (Plot ya Colony)</label>
+                <select 
+                  className="prop-select" 
+                  value={quickType} 
+                  onChange={(e) => setQuickType(e.target.value as 'plot' | 'colony')}
+                  style={{ width: '100%' }}
+                >
+                  <option value="plot">Plot Boundary (Orange Plot)</option>
+                  <option value="colony">Colony Boundary (Yellow Outer Wall)</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Width (चौड़ाई)</label>
+                  <input 
+                    type="number" 
+                    className="prop-input" 
+                    style={{ width: '100%' }}
+                    value={quickWidth} 
+                    onChange={(e) => setQuickWidth(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Height (लंबाई)</label>
+                  <input 
+                    type="number" 
+                    className="prop-input" 
+                    style={{ width: '100%' }}
+                    value={quickHeight} 
+                    onChange={(e) => setQuickHeight(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Unit</label>
+                <select 
+                  className="prop-select" 
+                  value={quickUnit} 
+                  onChange={(e) => setQuickUnit(e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="gaj">Gaj (Yards)</option>
+                  <option value="ft">Feet</option>
+                  <option value="m">Meter</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Right side: Interactive Help / Preview */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', border: '1px dashed rgba(245, 158, 11, 0.2)' }}>
+              <div style={{
+                width: '140px',
+                height: '100px',
+                border: quickType === 'plot' ? '2px dashed #fb923c' : '3px solid #eab308',
+                background: quickType === 'plot' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: quickType === 'plot' ? '#fb923c' : '#eab308',
+                fontSize: '13px',
+                fontWeight: 600
+              }}>
+                {quickWidth} x {quickHeight} {quickUnit === 'gaj' ? 'Gaj' : quickUnit === 'ft' ? 'Ft' : 'M'}
+              </div>
+              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '12px', lineHeight: '1.4', maxWidth: '240px' }}>
+                Map par khali jagah click karte hi is size ka ek clean, empty <strong>{quickType === 'plot' ? 'Plot' : 'Colony'} Boundary</strong> box drop ho jayega.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="print-dialog-body" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', overflowY: 'auto' }}>
+            {/* Left panel: Inputs */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '10px' }}>
+              <h4 style={{ color: '#fb923c', borderBottom: '1px solid rgba(148,163,184,0.12)', paddingBottom: '4px' }}>
+                📍 Land & Plot Parameters
+              </h4>
+              
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ flex: 2 }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8' }}>Total Land Size</label>
+                  <input 
+                    type="number" 
+                    className="prop-input" 
+                    style={{ width: '100%' }}
+                    value={settings.landSize} 
+                    onChange={(e) => setSettings({ ...settings, landSize: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8' }}>Unit</label>
+                  <select 
+                    className="prop-select" 
+                    value={settings.landUnit} 
+                    onChange={(e) => setSettings({ ...settings, landUnit: e.target.value })}
+                  >
+                    {Object.keys(UNIT_LABELS).map(k => (
+                      <option key={k} value={k}>{UNIT_LABELS[k]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ flex: 2 }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8' }}>Target Plot Size</label>
+                  <input 
+                    type="number" 
+                    className="prop-input" 
+                    style={{ width: '100%' }}
+                    value={settings.plotSize} 
+                    onChange={(e) => setSettings({ ...settings, plotSize: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8' }}>Unit</label>
+                  <select 
+                    className="prop-select" 
+                    value={settings.plotUnit} 
+                    onChange={(e) => setSettings({ ...settings, plotUnit: e.target.value })}
+                  >
+                    <option value="gaj">Gaj</option>
+                    <option value="sqft">Sq Ft</option>
+                    <option value="sqm">Sq Meter</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input 
+                  type="checkbox" 
+                  checked={settings.cornerPlot} 
+                  onChange={(e) => setSettings({ ...settings, cornerPlot: e.target.checked })}
+                />
+                <label style={{ fontSize: '12px' }}>Corner Plots Optimization</label>
+              </div>
+
+              <h4 style={{ color: '#38bdf8', borderBottom: '1px solid rgba(148,163,184,0.12)', paddingBottom: '4px', marginTop: '8px' }}>
+                🛣️ Infrastructure & Roads
+              </h4>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8' }}>Main Road Width</label>
+                  <select 
+                    className="prop-select" 
+                    value={settings.roadWidth} 
+                    onChange={(e) => setSettings({ ...settings, roadWidth: parseInt(e.target.value) || 20 })}
+                  >
+                    <option value="20">20 Feet</option>
+                    <option value="25">25 Feet</option>
+                    <option value="30">30 Feet</option>
+                    <option value="40">40 Feet</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input type="checkbox" checked={settings.laneMarking} onChange={e => setSettings({ ...settings, laneMarking: e.target.checked })} />
+                  Lane Markings
+                </label>
+                <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input type="checkbox" checked={settings.drains} onChange={e => setSettings({ ...settings, drains: e.target.checked })} />
+                  Include Side Drains
+                </label>
+              </div>
+
+              <h4 style={{ color: '#4ade80', borderBottom: '1px solid rgba(148,163,184,0.12)', paddingBottom: '4px', marginTop: '8px' }}>
+                🏡 Green Area & Zoning
+              </h4>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8' }}>Park / Open Space</label>
+                  <select 
+                    className="prop-select" 
+                    value={settings.parkPercentage} 
+                    onChange={(e) => setSettings({ ...settings, parkPercentage: parseInt(e.target.value) || 0 })}
+                  >
+                    <option value="5">5% of total land</option>
+                    <option value="10">10% of total land</option>
+                    <option value="15">15% of total land</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input type="checkbox" checked={settings.houses} onChange={e => setSettings({ ...settings, houses: e.target.checked })} />
+                  Pre-build CAD Houses
+                </label>
+                <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input type="checkbox" checked={settings.commercial} onChange={e => setSettings({ ...settings, commercial: e.target.checked })} />
+                  Shops & Markets (10%)
+                </label>
+              </div>
+
+              <h4 style={{ color: '#a78bfa', borderBottom: '1px solid rgba(148,163,184,0.12)', paddingBottom: '4px', marginTop: '8px' }}>
+                🕌 Utilities & Worship
+              </h4>
+
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input type="checkbox" checked={settings.temple} onChange={e => setSettings({ ...settings, temple: e.target.checked, mosque: false })} />
+                  Include Temple
+                </label>
+                <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input type="checkbox" checked={settings.mosque} onChange={e => setSettings({ ...settings, mosque: e.target.checked, temple: false })} />
+                  Include Mosque
+                </label>
+              </div>
+            </div>
+
+            {/* Right panel: Live calculation summary */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <h4 style={{ color: '#14b8a6', borderBottom: '1px solid rgba(148,163,184,0.12)', paddingBottom: '4px' }}>
+                📊 Real-time CAD Calculations
+              </h4>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#94a3b8' }}>Total Land Area:</span>
+                  <span style={{ fontWeight: 'bold' }}>{metrics.totalAreaSqm.toLocaleString()} sqm</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#94a3b8' }}>Road Reservation Area:</span>
+                  <span>{metrics.roadAreaSqm.toLocaleString()} sqm</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#94a3b8' }}>Park Reservation (Green):</span>
+                  <span>{metrics.parkAreaSqm.toLocaleString()} sqm</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#94a3b8' }}>Commercial Zoning (Shops):</span>
+                  <span>{metrics.commercialAreaSqm.toLocaleString()} sqm</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderTop: '1px dashed rgba(148,163,184,0.12)', paddingTop: '4px' }}>
+                  <span style={{ color: '#94a3b8' }}>Net Residential Plot Area:</span>
+                  <span style={{ color: '#14b8a6', fontWeight: 600 }}>{metrics.residentialAreaSqm.toLocaleString()} sqm</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#94a3b8' }}>Remaining Open Spaces:</span>
+                  <span>{metrics.remainingAreaSqm.toLocaleString()} sqm</span>
+                </div>
+              </div>
+
+              <div style={{ flex: 1 }} />
+
+              <div style={{ background: 'rgba(20, 184, 166, 0.08)', border: '1px solid rgba(20, 184, 166, 0.2)', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>MAXIMIZED YIELD</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#14b8a6' }}>{metrics.estimatedPlots}</div>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>Residential Plots Generated</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="print-dialog-footer">
           <button className="print-dialog-btn" onClick={onClose}>Cancel</button>
-          <button 
-            className="print-dialog-btn print-dialog-btn-primary" 
-            style={{ background: 'linear-gradient(135deg, #14b8a6, #0ea5e9)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
-            onClick={handleGenerate}
-          >
-            ⚡ Generate Colony Layout
-          </button>
+          {activeTab === 'colony' ? (
+            <button 
+              className="print-dialog-btn print-dialog-btn-primary" 
+              style={{ background: 'linear-gradient(135deg, #14b8a6, #0ea5e9)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+              onClick={handleGenerate}
+            >
+              ⚡ Generate Colony Layout
+            </button>
+          ) : (
+            <button 
+              className="print-dialog-btn print-dialog-btn-primary" 
+              style={{ background: 'linear-gradient(135deg, #fb923c, #ea580c)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+              onClick={() => {
+                if (onStartBoundaryPlacement) {
+                  onStartBoundaryPlacement({
+                    width: quickWidth,
+                    height: quickHeight,
+                    unit: quickUnit,
+                    type: quickType
+                  });
+                }
+                onClose();
+              }}
+            >
+              📍 Enable Placement Tool
+            </button>
+          )}
         </div>
       </div>
     </div>

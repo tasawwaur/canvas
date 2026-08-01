@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Feature, Layer } from '../types';
 
 type ObjectPanelProps = {
@@ -36,6 +36,47 @@ export const ObjectPanel: React.FC<ObjectPanelProps> = ({
     setCollapsedLayers(next);
   };
 
+  // Flatten visible features for keyboard navigation
+  const visibleFeatures: Feature[] = [];
+  layers.forEach((layer) => {
+    const layerFeatures = features.filter((f) => f.layerId === layer.id);
+    if (layerFeatures.length === 0) return;
+    const isCollapsed = collapsedLayers.has(layer.id);
+    if (!isCollapsed) {
+      visibleFeatures.push(...layerFeatures);
+    }
+  });
+
+  const focusObjectItem = (id: string) => {
+    setTimeout(() => {
+      const el = document.getElementById(`object-item-${id}`);
+      if (el) el.focus();
+    }, 10);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (visibleFeatures.length === 0) return;
+    const currentIndex = visibleFeatures.findIndex((f) => f.id === selectedFeatureId);
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextIdx = currentIndex === -1 ? 0 : Math.min(currentIndex + 1, visibleFeatures.length - 1);
+      const nextFeature = visibleFeatures[nextIdx];
+      if (nextFeature) {
+        onSelectFeature(nextFeature.id);
+        focusObjectItem(nextFeature.id);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevIdx = currentIndex === -1 ? 0 : Math.max(currentIndex - 1, 0);
+      const prevFeature = visibleFeatures[prevIdx];
+      if (prevFeature) {
+        onSelectFeature(prevFeature.id);
+        focusObjectItem(prevFeature.id);
+      }
+    }
+  };
+
   if (features.length === 0) {
     return (
       <div className="object-panel">
@@ -45,7 +86,7 @@ export const ObjectPanel: React.FC<ObjectPanelProps> = ({
   }
 
   return (
-    <div className="object-panel">
+    <div className="object-panel" onKeyDown={handleKeyDown}>
       {layers.map((layer) => {
         const layerFeatures = features.filter((f) => f.layerId === layer.id);
         if (layerFeatures.length === 0) return null;
@@ -57,6 +98,7 @@ export const ObjectPanel: React.FC<ObjectPanelProps> = ({
             <div
               className="object-layer-header"
               onClick={() => toggleLayer(layer.id)}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
             >
               <span>{isCollapsed ? '▶' : '▼'}</span> {layer.name} ({layerFeatures.length})
             </div>
@@ -65,8 +107,14 @@ export const ObjectPanel: React.FC<ObjectPanelProps> = ({
                 {layerFeatures.map((f) => (
                   <div
                     key={f.id}
+                    id={`object-item-${f.id}`}
+                    tabIndex={0}
                     className={`object-item ${selectedFeatureId === f.id ? 'object-item-selected' : ''}`}
-                    onClick={() => onSelectFeature(f.id)}
+                    onClick={() => {
+                      onSelectFeature(f.id);
+                      focusObjectItem(f.id);
+                    }}
+                    style={{ cursor: 'pointer', outline: 'none' }}
                   >
                     <div
                       style={{
@@ -79,7 +127,7 @@ export const ObjectPanel: React.FC<ObjectPanelProps> = ({
                       }}
                     />
                     <svg viewBox="0 0 24 24" className="object-item-icon" width="16" height="16">
-                      {GEOM_ICONS[f.geometry.type]}
+                      {GEOM_ICONS[f.geometry.type] || GEOM_ICONS.point}
                     </svg>
                     <span className="object-item-name" title={f.name}>
                       {f.name}

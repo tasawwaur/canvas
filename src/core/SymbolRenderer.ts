@@ -288,6 +288,14 @@ export const SymbolRenderer = {
       case "school": this.drawSchool(ctx, x, y, size, color); break;
       case "temple": this.drawTemple(ctx, x, y, size, color); break;
       case "mosque": this.drawMosque(ctx, x, y, size, color); break;
+      default:
+        ctx.save();
+        ctx.font = `${size}px Inter, "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(symbolType, x, y);
+        ctx.restore();
+        break;
     }
   }
 };

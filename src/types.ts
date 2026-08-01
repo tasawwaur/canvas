@@ -40,7 +40,9 @@ export type Tool =
   | "school"
   | "temple"
   | "mosque"
-  | "exportCrop";
+  | "exportCrop"
+  | "emoji"
+  | "placeBoundary";
 
 /** Plot availability status */
 export type PlotStatus = "available" | "sold" | "booked";
@@ -80,15 +82,7 @@ export type PaperSize = "A0" | "A1" | "A2" | "A3" | "A4";
 export type Orientation = "landscape" | "portrait";
 
 /** Map symbol identifiers (placed as point features) */
-export type SymbolType =
-  | "gate"
-  | "tree"
-  | "pole"
-  | "waterTank"
-  | "park"
-  | "school"
-  | "temple"
-  | "mosque";
+export type SymbolType = string;
 
 // ============================================================
 // Geometry

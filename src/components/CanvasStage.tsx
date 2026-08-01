@@ -36,6 +36,16 @@ class ImageCache {
     };
   }
 }
+const convertToMeters = (val: number, unit: string): number => {
+  const rates: Record<string, number> = {
+    ft: 0.3048,
+    gaj: 0.9144,
+    yd: 0.9144,
+    m: 1.0,
+    meter: 1.0
+  };
+  return val * (rates[unit.toLowerCase()] || 1.0);
+};
 
 type CanvasStageProps = {
   layers: Layer[];
@@ -58,6 +68,13 @@ type CanvasStageProps = {
   onCanvasReady?: (canvas: HTMLCanvasElement) => void;
   onMerge?: () => void;
   onExportCropArea?: (bounds: { minX: number; maxX: number; minY: number; maxY: number }) => void;
+  activeEmoji?: string;
+  boundaryPlacement?: {
+    width: number;
+    height: number;
+    unit: string;
+    type: 'plot' | 'colony';
+  } | null;
 };
 
 export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
@@ -65,7 +82,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
     layers, features, viewport, tool, activeLayerId, selectedFeatureId, selectedFeatureIds,
     draft, settings, onViewportChange, onSelectFeature, onCommitFeature,
     onUpdateFeature, onCursorMove, onDraftChange, onFinishDraft,
-    onCancelDraft, onCanvasReady, onMerge, onExportCropArea
+    onCancelDraft, onCanvasReady, onMerge, onExportCropArea, activeEmoji = '🚧',
+    boundaryPlacement
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -196,6 +214,12 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
       case 'mosque':
         ctx.arc(0, 0, size/2, Math.PI, 0);
         ctx.stroke();
+        break;
+      default:
+        ctx.font = `${size}px Inter, "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(type, 0, 0);
         break;
     }
     ctx.restore();
@@ -962,6 +986,55 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         onSelectFeature(null);
         onDraftChange({ tool: 'select', start: pt, current: pt });
       }
+      return;
+    }
+
+    if (tool === 'emoji') {
+      onCommitFeature({
+        id: createId('feature'),
+        layerId: activeLayerId,
+        name: `Emoji: ${activeEmoji}`,
+        zIndex: 0,
+        geometry: { type: 'symbol', point: snapped, symbolType: activeEmoji, size: 28 },
+        style: {},
+        properties: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      return;
+    }
+
+    if (tool === 'placeBoundary' && boundaryPlacement) {
+      const { width, height, unit, type } = boundaryPlacement;
+      const wMeters = convertToMeters(width, unit);
+      const hMeters = convertToMeters(height, unit);
+      const layerName = type === 'plot' ? 'plot' : 'boundary';
+      const targetLayer = layers.find(l => l.name.toLowerCase().includes(layerName)) || layers[0];
+
+      onCommitFeature({
+        id: createId('feature'),
+        layerId: targetLayer.id,
+        name: type === 'plot' ? `Plot ${width}x${height} ${unit}` : `Colony ${width}x${height} ${unit}`,
+        geometry: {
+          type: 'rectangle',
+          origin: { x: snapped.x - wMeters / 2, y: snapped.y - hMeters / 2 },
+          width: wMeters,
+          height: hMeters
+        },
+        style: type === 'plot'
+          ? { fillColor: 'rgba(245, 158, 11, 0.05)', borderColor: '#fb923c', lineWidth: 1.5 }
+          : { fillColor: 'rgba(255, 255, 255, 0.01)', borderColor: '#eab308', lineWidth: 3 },
+        properties: {
+          area: wMeters * hMeters,
+          width,
+          height,
+          unit,
+          type
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        zIndex: type === 'plot' ? 2 : 1
+      });
       return;
     }
 

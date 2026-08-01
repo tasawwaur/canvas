@@ -98,6 +98,13 @@ export const App: React.FC = () => {
   
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
   const [tool, setTool] = useState<Tool>('select');
+  const [boundaryPlacement, setBoundaryPlacement] = useState<{
+    width: number;
+    height: number;
+    unit: string;
+    type: 'plot' | 'colony';
+  } | null>(null);
+  const [activeEmoji, setActiveEmoji] = useState<string>('🚧');
   
   // Support multi-select features
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([]);
@@ -710,6 +717,9 @@ export const App: React.FC = () => {
 
   const handleToolChange = (newTool: Tool) => {
     setTool(newTool);
+    if (newTool !== 'placeBoundary') {
+      setBoundaryPlacement(null);
+    }
   };
 
   const handleFitAll = () => {
@@ -851,7 +861,16 @@ export const App: React.FC = () => {
           updatedAt: nowIso()
         })}
       />
-      <Toolbar tool={tool} onToolChange={handleToolChange} scale={viewport.scale} />
+      <Toolbar 
+        tool={tool} 
+        onToolChange={handleToolChange} 
+        scale={viewport.scale} 
+        activeEmoji={activeEmoji}
+        onEmojiSelect={(emoji) => {
+          setActiveEmoji(emoji);
+          setTool('emoji');
+        }}
+      />
       
       <main className="workspace">
         <aside className="left-sidebar">
@@ -901,6 +920,8 @@ export const App: React.FC = () => {
           features={project.features}
           viewport={viewport}
           tool={tool}
+          activeEmoji={activeEmoji}
+          boundaryPlacement={boundaryPlacement}
           activeLayerId={activeLayerId}
           selectedFeatureId={selectedFeatureId}
           selectedFeatureIds={selectedFeatureIds}
@@ -993,6 +1014,10 @@ export const App: React.FC = () => {
           onClose={() => setShowAIGenerator(false)}
           onCommitLayout={handleCommitLayout}
           layers={project.layers}
+          onStartBoundaryPlacement={(settings) => {
+            setBoundaryPlacement(settings);
+            setTool('placeBoundary');
+          }}
         />
       )}
 
