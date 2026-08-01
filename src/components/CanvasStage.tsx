@@ -50,7 +50,7 @@ type CanvasStageProps = {
   onViewportChange: (viewport: Viewport) => void;
   onSelectFeature: (id: string | null) => void;
   onCommitFeature: (feature: Feature) => void;
-  onUpdateFeature: (id: string, updater: (f: Feature) => Feature) => void;
+  onUpdateFeature: (id: string | string[], updater: (f: Feature) => Feature) => void;
   onCursorMove: (point: Point | null) => void;
   onDraftChange: (draft: DraftState) => void;
   onFinishDraft: () => void;
@@ -1413,43 +1413,42 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         e.preventDefault();
         const newScale = Math.min(Math.max(vp.scale * 0.85, 0.05), 50);
         onViewportChange({ ...vp, scale: newScale });
-      } else if (e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'v') {
+      } else if ((e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'v') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // C = bada (scale up), V = chota (scale down) — shape ko scale karo, map zoom nahi
         const ids = selectedFeatureIdsRef.current;
         if (ids.length > 0) {
           e.preventDefault();
           const factor = e.key.toLowerCase() === 'c' ? 1.1 : 0.9;
-          ids.forEach(id => {
-            onUpdateFeature(id, f => {
-              const geom = f.geometry;
-              // Find center of geometry
-              const b = geometryBounds(geom);
-              const cx = (b.minX + b.maxX) / 2;
-              const cy = (b.minY + b.maxY) / 2;
-              // Scale all points from center
-              const scalePoint = (p: Point): Point => ({
-                x: cx + (p.x - cx) * factor,
-                y: cy + (p.y - cy) * factor,
-              });
-              let newGeom = geom;
-              if (geom.type === 'polyline' || geom.type === 'polygon' || geom.type === 'line') {
-                newGeom = { ...geom, points: geom.points.map(scalePoint) } as any;
-              } else if (geom.type === 'rectangle' || geom.type === 'image') {
-                const newW = Math.max(1, geom.width * factor);
-                const newH = Math.max(1, geom.height * factor);
-                newGeom = { ...geom, origin: { x: cx - newW / 2, y: cy - newH / 2 }, width: newW, height: newH } as any;
-              } else if (geom.type === 'circle') {
-                newGeom = { ...geom, radius: Math.max(0.5, geom.radius * factor) } as any;
-              } else if (geom.type === 'arrow') {
-                newGeom = { ...geom, start: scalePoint(geom.start), end: scalePoint(geom.end) } as any;
-              } else if (geom.type === 'symbol') {
-                newGeom = { ...geom, size: Math.max(1, (geom.size || 20) * factor) } as any;
-              } else if (geom.type === 'point' || geom.type === 'label') {
-                // point/label don't have size to change — skip
-                return f;
-              }
-              return { ...f, geometry: newGeom, updatedAt: new Date().toISOString() };
+          onUpdateFeature(ids, f => {
+            const geom = f.geometry;
+            // Find center of geometry
+            const b = geometryBounds(geom);
+            if (!b) return f;
+            const cx = (b.minX + b.maxX) / 2;
+            const cy = (b.minY + b.maxY) / 2;
+            // Scale all points from center
+            const scalePoint = (p: Point): Point => ({
+              x: cx + (p.x - cx) * factor,
+              y: cy + (p.y - cy) * factor,
             });
+            let newGeom = geom;
+            if (geom.type === 'polyline' || geom.type === 'polygon' || geom.type === 'line') {
+              newGeom = { ...geom, points: geom.points.map(scalePoint) } as any;
+            } else if (geom.type === 'rectangle' || geom.type === 'image') {
+              const newW = Math.max(1, geom.width * factor);
+              const newH = Math.max(1, geom.height * factor);
+              newGeom = { ...geom, origin: { x: cx - newW / 2, y: cy - newH / 2 }, width: newW, height: newH } as any;
+            } else if (geom.type === 'circle') {
+              newGeom = { ...geom, radius: Math.max(0.5, geom.radius * factor) } as any;
+            } else if (geom.type === 'arrow') {
+              newGeom = { ...geom, start: scalePoint(geom.start), end: scalePoint(geom.end) } as any;
+            } else if (geom.type === 'symbol') {
+              newGeom = { ...geom, size: Math.max(1, (geom.size || 20) * factor) } as any;
+            } else if (geom.type === 'point' || geom.type === 'label') {
+              // point/label don't have size to change — skip
+              return f;
+            }
+            return { ...f, geometry: newGeom, updatedAt: new Date().toISOString() };
           });
         }
       } else if (e.key === 'Escape') {

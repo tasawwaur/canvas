@@ -391,8 +391,9 @@ export const App: React.FC = () => {
     setSelectedFeatureIds([f.id]);
   };
 
-  const handleUpdateFeature = (id: string, updater: (f: Feature) => Feature) => {
-    commit({ ...project, features: project.features.map(f => f.id === id ? updater(f) : f), updatedAt: nowIso() });
+  const handleUpdateFeature = (id: string | string[], updater: (f: Feature) => Feature) => {
+    const ids = Array.isArray(id) ? id : [id];
+    commit({ ...project, features: project.features.map(f => ids.includes(f.id) ? updater(f) : f), updatedAt: nowIso() });
   };
 
   const handleDeleteFeature = (ids: string | string[]) => {
