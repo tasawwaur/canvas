@@ -108,40 +108,13 @@ export const RibbonMenu: React.FC<RibbonMenuProps> = ({
               borderRadius: '6px', 
               padding: '4px 10px', 
               fontSize: '13px',
-              width: '180px'
+              width: '180px',
+              marginRight: '220px' // Leave space for timer & logout
             }}
             value={projectName}
             onChange={(e) => onProjectNameChange(e.target.value)}
             placeholder="Project Name"
           />
-          {onExit && (
-            <button 
-              className="ribbon-btn" 
-              style={{ 
-                background: 'rgba(239, 68, 68, 0.15)', 
-                color: '#f87171', 
-                border: 'none', 
-                fontWeight: 600,
-                padding: '4px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-              }}
-              onClick={onExit}
-            >
-              ❌ Exit
-            </button>
-          )}
         </div>
       </div>
 

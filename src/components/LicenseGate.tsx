@@ -109,7 +109,7 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
         <div style={{
           position: 'fixed',
-          top: '46px',
+          top: '6px',
           right: '16px',
           zIndex: 9999,
           display: 'flex',
