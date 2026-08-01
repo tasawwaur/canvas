@@ -749,6 +749,9 @@ export const App: React.FC = () => {
       return;
     }
 
+    // Select ALL features — highlight everything
+    setSelectedFeatureIds(project.features.map(f => f.id));
+
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     project.features.forEach(f => {
       const b = geometryBounds(f.geometry);
@@ -762,22 +765,16 @@ export const App: React.FC = () => {
       const centerX = (minX + maxX) / 2;
       const centerY = (minY + maxY) / 2;
       
-      const pad = 80; // 80 units margin
+      const pad = 80;
       const fitW = Math.max(50, maxX - minX + pad * 2);
       const fitH = Math.max(50, maxY - minY + pad * 2);
       
       const scX = canvasSize.width / fitW;
       const scY = canvasSize.height / fitH;
       let scale = Math.min(scX, scY);
-      
-      // Clamp to view scales
       scale = Math.min(Math.max(scale, 0.05), 40);
 
-      setViewport({
-        x: centerX,
-        y: centerY,
-        scale
-      });
+      setViewport({ x: centerX, y: centerY, scale });
     } else {
       setViewport({ x: 0, y: 0, scale: 1 });
     }
@@ -809,11 +806,11 @@ export const App: React.FC = () => {
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
-        onExportPNG={() => canvasRef && exportToPNG(canvasRef, project.name)}
-        onExportJPEG={() => canvasRef && exportToJPEG(canvasRef, project.name)}
+        onExportPNG={() => exportToPNG(project, project.name, selectedFeatureIds)}
+        onExportJPEG={() => exportToJPEG(project, project.name, selectedFeatureIds)}
         onExportPDF={() => canvasRef && exportToPDF(project, canvasRef, {
           paperSize: 'A4', orientation: 'landscape', scale: 100, fitToPage: true, showGrid: false, showDimensions: true, title: project.name
-        })}
+        }, selectedFeatureIds)}
         onExportSVG={handleDownloadSVG}
         onExportDXF={handleDownloadDXF}
         onExportGeoJSON={handleDownloadGeoJSON}
@@ -960,7 +957,7 @@ export const App: React.FC = () => {
           onPrint={(printSettings) => {
              setShowPrintDialog(false);
              if (canvasRef) {
-               exportToPDF(project, canvasRef, printSettings);
+                exportToPDF(project, canvasRef, printSettings, selectedFeatureIds);
              }
           }}
         />

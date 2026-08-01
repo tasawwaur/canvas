@@ -75,6 +75,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
   const [isMoving, setIsMoving] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, show: boolean } | null>(null);
   const [reshapeFeatureId, setReshapeFeatureId] = useState<string | null>(null);
+  const [toolSize, setToolSize] = useState<number>(30);
+  const toolSizeRef = useRef<number>(30);
   const activeVertexIndexRef = useRef<number | null>(null);
   const resizeRef = useRef<{ featureId: string; handle: string; startPt: Point; origGeom: any } | null>(null);
 
@@ -313,24 +315,16 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         const isRoad = geom.type === 'polyline' && (f.properties?.roadWidth !== undefined || f.name.toLowerCase().includes('road'));
         if (isRoad) {
           ctx.save();
-          const roadWidth = f.properties?.roadWidth || 30;
+          // Only yellow dashed line — no dark background
           ctx.beginPath();
           ctx.moveTo(geom.points[0].x, geom.points[0].y);
           for (let i = 1; i < geom.points.length; i++) {
             ctx.lineTo(geom.points[i].x, geom.points[i].y);
           }
-          
-          // 1. Asphalt base
-          ctx.strokeStyle = '#334155';
-          ctx.lineWidth = roadWidth;
+          ctx.strokeStyle = '#eab308';
+          ctx.lineWidth = Math.max(1, 2 / vp.scale);
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
-          ctx.stroke();
-          
-          // 2. Dash yellow center line
-          ctx.strokeStyle = '#eab308';
-          ctx.lineWidth = Math.max(1, 1.5 / vp.scale);
-          ctx.lineCap = 'butt';
           ctx.setLineDash([8 / vp.scale, 8 / vp.scale]);
           ctx.stroke();
           ctx.restore();
@@ -588,8 +582,38 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
       
       ctx.beginPath();
       if ('start' in d && 'current' in d) {
-        if (d.tool === 'line' || d.tool === 'divider' || d.tool === 'arrow') {
+        if (d.tool === 'line') {
           ctx.moveTo(d.start.x, d.start.y); ctx.lineTo(d.current.x, d.current.y);
+        } else if (d.tool === 'divider') {
+          // Bright red line for divider
+          ctx.save();
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 2 / vp.scale;
+          ctx.setLineDash([6 / vp.scale, 4 / vp.scale]);
+          ctx.beginPath();
+          ctx.moveTo(d.start.x, d.start.y); ctx.lineTo(d.current.x, d.current.y);
+          ctx.stroke();
+          ctx.restore();
+        } else if (d.tool === 'arrow') {
+          // Draw arrow preview with head
+          ctx.save();
+          ctx.strokeStyle = '#f59e0b';
+          ctx.fillStyle = '#f59e0b';
+          ctx.lineWidth = 2 / vp.scale;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(d.start.x, d.start.y); ctx.lineTo(d.current.x, d.current.y);
+          ctx.stroke();
+          // Arrow head
+          const ang = Math.atan2(d.current.y - d.start.y, d.current.x - d.start.x);
+          const hs = 12 / vp.scale;
+          ctx.beginPath();
+          ctx.moveTo(d.current.x, d.current.y);
+          ctx.lineTo(d.current.x - hs * Math.cos(ang - 0.4), d.current.y - hs * Math.sin(ang - 0.4));
+          ctx.lineTo(d.current.x - hs * Math.cos(ang + 0.4), d.current.y - hs * Math.sin(ang + 0.4));
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
         } else if (d.tool === 'rectangle') {
           const rect = normalizeRectangle(d.start, d.current);
           ctx.rect(rect.origin.x, rect.origin.y, rect.width, rect.height);
@@ -602,19 +626,13 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
           ctx.moveTo(d.points[0].x, d.points[0].y);
           for (let i = 1; i < d.points.length; i++) ctx.lineTo(d.points[i].x, d.points[i].y);
           if (d.current) ctx.lineTo(d.current.x, d.current.y);
-          
+
           ctx.save();
-          // Thick road track preview (semi-transparent)
-          ctx.strokeStyle = 'rgba(51, 65, 85, 0.65)';
-          ctx.lineWidth = 30;
+          // Only yellow dashed line — no background
+          ctx.strokeStyle = '#eab308';
+          ctx.lineWidth = Math.max(1, 2 / vp.scale);
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
-          ctx.stroke();
-          
-          // Yellow dashed line preview
-          ctx.strokeStyle = '#eab308';
-          ctx.lineWidth = Math.max(1, 1.5 / vp.scale);
-          ctx.lineCap = 'butt';
           ctx.setLineDash([8 / vp.scale, 8 / vp.scale]);
           ctx.stroke();
           ctx.restore();
@@ -958,7 +976,14 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
       return;
     }
 
-    if (['line', 'rectangle', 'circle', 'arrow', 'divider'].includes(t)) {
+    if (t === 'arrow') {
+      // Arrow: click anywhere to place immediately with default size
+      // OR drag to custom size — start draft for drag
+      onDraftChange({ tool: 'arrow', start: snapped, current: { x: snapped.x + 30, y: snapped.y } });
+      return;
+    }
+
+    if (['line', 'rectangle', 'circle', 'divider'].includes(t)) {
       onDraftChange({ tool: t, start: snapped, current: snapped });
       return;
     }
@@ -1152,20 +1177,18 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
           onSelectFeature(null);
         }
       } else if (tool === 'divider') {
-        // Find all intersecting features and split them
+        // Bright red divider line — split intersecting polygons
         features.forEach(f => {
           if (f.geometry.type === 'polygon' || f.geometry.type === 'rectangle') {
             const polyPoints = toPolygonPoints(f.geometry);
             const splitResult = splitPolygonByLine(polyPoints, start, current);
             if (splitResult) {
               const [p1, p2] = splitResult;
-              // Update original geometry to part 1
               onUpdateFeature(f.id, old => ({
                 ...old,
                 geometry: { type: 'polygon', points: p1 },
                 updatedAt: new Date().toISOString()
               }));
-              // Commit part 2 as a new feature
               onCommitFeature({
                 id: createId('feature'),
                 layerId: f.layerId,
@@ -1180,7 +1203,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
             }
           }
         });
-      } else if (distance(start, current) > 1 / viewport.scale) {
+        onFinishDraft();
+      } else if (distance(start, current) > 0.5 / viewport.scale) {
         let geom: Geometry | null = null;
         if (tool === 'line') geom = { type: 'line', points: [start, current] };
         else if (tool === 'rectangle') geom = { type: 'rectangle', ...normalizeRectangle(start, current) };
@@ -1245,7 +1269,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         geom = { type: 'polyline', points: draft.points };
         if (draft.tool === 'road') {
           name = 'Road 1';
-          props.roadWidth = 30;
+          props.roadWidth = toolSizeRef.current;
         }
       }
 
@@ -1289,7 +1313,12 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
 
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        if (hasSelection) {
+        const d = draftRef.current;
+        if (d && 'points' in d && d.points.length > 0) {
+          const nudge = 5 / vp.scale;
+          const last = d.points[d.points.length - 1];
+          onDraftChange({ ...d, current: { x: (d.current?.x ?? last.x), y: (d.current?.y ?? last.y) - nudge } });
+        } else if (hasSelection) {
           const nudge = 5 / vp.scale;
           selectedFeatureIdsRef.current.forEach(id => {
             onUpdateFeature(id, f => ({ ...f, geometry: translateGeometry(f.geometry, 0, -nudge), updatedAt: new Date().toISOString() }));
@@ -1300,7 +1329,12 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         }
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        if (hasSelection) {
+        const d = draftRef.current;
+        if (d && 'points' in d && d.points.length > 0) {
+          const nudge = 5 / vp.scale;
+          const last = d.points[d.points.length - 1];
+          onDraftChange({ ...d, current: { x: (d.current?.x ?? last.x), y: (d.current?.y ?? last.y) + nudge } });
+        } else if (hasSelection) {
           const nudge = 5 / vp.scale;
           selectedFeatureIdsRef.current.forEach(id => {
             onUpdateFeature(id, f => ({ ...f, geometry: translateGeometry(f.geometry, 0, nudge), updatedAt: new Date().toISOString() }));
@@ -1311,7 +1345,12 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         }
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        if (hasSelection) {
+        const d = draftRef.current;
+        if (d && 'points' in d && d.points.length > 0) {
+          const nudge = 5 / vp.scale;
+          const last = d.points[d.points.length - 1];
+          onDraftChange({ ...d, current: { x: (d.current?.x ?? last.x) - nudge, y: (d.current?.y ?? last.y) } });
+        } else if (hasSelection) {
           const nudge = 5 / vp.scale;
           selectedFeatureIdsRef.current.forEach(id => {
             onUpdateFeature(id, f => ({ ...f, geometry: translateGeometry(f.geometry, -nudge, 0), updatedAt: new Date().toISOString() }));
@@ -1322,7 +1361,12 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         }
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        if (hasSelection) {
+        const d = draftRef.current;
+        if (d && 'points' in d && d.points.length > 0) {
+          const nudge = 5 / vp.scale;
+          const last = d.points[d.points.length - 1];
+          onDraftChange({ ...d, current: { x: (d.current?.x ?? last.x) + nudge, y: (d.current?.y ?? last.y) } });
+        } else if (hasSelection) {
           const nudge = 5 / vp.scale;
           selectedFeatureIdsRef.current.forEach(id => {
             onUpdateFeature(id, f => ({ ...f, geometry: translateGeometry(f.geometry, nudge, 0), updatedAt: new Date().toISOString() }));
@@ -1339,6 +1383,45 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         e.preventDefault();
         const newScale = Math.min(Math.max(vp.scale * 0.85, 0.05), 50);
         onViewportChange({ ...vp, scale: newScale });
+      } else if (e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'v') {
+        // C = bada (scale up), V = chota (scale down) — shape ko scale karo, map zoom nahi
+        const ids = selectedFeatureIdsRef.current;
+        if (ids.length > 0) {
+          e.preventDefault();
+          const factor = e.key.toLowerCase() === 'c' ? 1.1 : 0.9;
+          ids.forEach(id => {
+            onUpdateFeature(id, f => {
+              const geom = f.geometry;
+              // Find center of geometry
+              const b = geometryBounds(geom);
+              const cx = (b.minX + b.maxX) / 2;
+              const cy = (b.minY + b.maxY) / 2;
+              // Scale all points from center
+              const scalePoint = (p: Point): Point => ({
+                x: cx + (p.x - cx) * factor,
+                y: cy + (p.y - cy) * factor,
+              });
+              let newGeom = geom;
+              if (geom.type === 'polyline' || geom.type === 'polygon' || geom.type === 'line') {
+                newGeom = { ...geom, points: geom.points.map(scalePoint) } as any;
+              } else if (geom.type === 'rectangle' || geom.type === 'image') {
+                const newW = Math.max(1, geom.width * factor);
+                const newH = Math.max(1, geom.height * factor);
+                newGeom = { ...geom, origin: { x: cx - newW / 2, y: cy - newH / 2 }, width: newW, height: newH } as any;
+              } else if (geom.type === 'circle') {
+                newGeom = { ...geom, radius: Math.max(0.5, geom.radius * factor) } as any;
+              } else if (geom.type === 'arrow') {
+                newGeom = { ...geom, start: scalePoint(geom.start), end: scalePoint(geom.end) } as any;
+              } else if (geom.type === 'symbol') {
+                newGeom = { ...geom, size: Math.max(1, (geom.size || 20) * factor) } as any;
+              } else if (geom.type === 'point' || geom.type === 'label') {
+                // point/label don't have size to change — skip
+                return f;
+              }
+              return { ...f, geometry: newGeom, updatedAt: new Date().toISOString() };
+            });
+          });
+        }
       } else if (e.key === 'Escape') {
         if (reshapeFeatureId) {
           setReshapeFeatureId(null);
@@ -1375,7 +1458,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [draft, activeLayerId, onUpdateFeature, onViewportChange, onCancelDraft, handleDoubleClick]);
+  }, [draft, activeLayerId, onUpdateFeature, onViewportChange, onCancelDraft, onDraftChange, handleDoubleClick]);
 
   const dispatchKeyEvent = (keyName: string, ctrl: boolean = false) => {
     window.dispatchEvent(new KeyboardEvent('keydown', {
@@ -1506,6 +1589,33 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
           </button>
         </div>
       )}
+
+      {/* Keyboard Shortcut Indicator */}
+      <div style={{
+        position: 'absolute',
+        bottom: '14px',
+        right: '14px',
+        background: 'rgba(15, 23, 42, 0.88)',
+        border: '1px solid #334155',
+        borderRadius: '8px',
+        padding: '5px 12px',
+        color: '#94a3b8',
+        fontSize: '11px',
+        fontFamily: 'Inter, monospace',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        zIndex: 50,
+        pointerEvents: 'none',
+      }}>
+        <span><kbd style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '3px', padding: '1px 6px', color: '#4ade80' }}>Z</kbd> Zoom In</span>
+        <span style={{ color: '#334155' }}>|</span>
+        <span><kbd style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '3px', padding: '1px 6px', color: '#f87171' }}>O</kbd> Zoom Out</span>
+        <span style={{ color: '#334155' }}>|</span>
+        <span><kbd style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '3px', padding: '1px 6px', color: '#a78bfa' }}>C</kbd> Shape ↑</span>
+        <span style={{ color: '#334155' }}>|</span>
+        <span><kbd style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '3px', padding: '1px 6px', color: '#fb923c' }}>V</kbd> Shape ↓</span>
+      </div>
     </div>
   );
 };
