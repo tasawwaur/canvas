@@ -68,8 +68,43 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
     setErrorMsg('Invalid License Key! Please enter valid key.');
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('app_license_key');
+    localStorage.removeItem('app_license_expiry');
+    setIsAuthenticated(false);
+    setLicenseKey('');
+  };
+
   if (isAuthenticated) {
-    return <>{children}</>;
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <button
+          onClick={handleLogout}
+          title="Logout License Session"
+          style={{
+            position: 'fixed',
+            top: '8px',
+            right: '16px',
+            zIndex: 9999,
+            backgroundColor: '#ef4444',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '4px 10px',
+            fontSize: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          🔒 Logout Key ({expiryInfo})
+        </button>
+        {children}
+      </div>
+    );
   }
 
   return (
