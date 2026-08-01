@@ -111,7 +111,56 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
   };
 
   if (isAuthenticated) {
-    return <>{children}</>;
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div style={{
+          position: 'fixed',
+          top: '6px',
+          right: '16px',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          {remainingTime && remainingTime !== 'Unlimited' && (
+            <div style={{
+              backgroundColor: '#1e293b',
+              color: '#38bdf8',
+              border: '1px solid #38bdf860',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              fontSize: '12px',
+              fontWeight: 600,
+              fontFamily: 'monospace',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.4)'
+            }}>
+              ⏱️ {remainingTime}
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            title="Logout License"
+            style={{
+              backgroundColor: '#ef4444',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '4px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+            }}
+          >
+            Logout
+          </button>
+        </div>
+        {children}
+      </div>
+    );
   }
 
   return (
