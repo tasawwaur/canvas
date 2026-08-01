@@ -36,6 +36,7 @@ const ICONS = {
   school: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 22V10l8-6 8 6v12H4zm8-12v10M8 22v-4m8 4v-4" /></svg>,
   temple: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L4 10h16zM6 10v12h12V10M10 22v-6h4v6" /></svg>,
   mosque: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2c-2 2-4 5-4 8v12h8V10c0-3-2-6-4-8zM4 22v-8c0-2 2-4 4-4M20 22v-8c0-2-2-4-4-4" /></svg>,
+  exportCrop: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2v16h16M2 6h16v16" /></svg>,
 };
 
 const GROUPS: ToolGroupInfo[] = [
@@ -44,6 +45,7 @@ const GROUPS: ToolGroupInfo[] = [
     tools: [
       { id: 'select', label: 'Select', icon: ICONS.select },
       { id: 'pan', label: 'Pan', icon: ICONS.pan },
+      { id: 'exportCrop', label: 'Crop Export Area', icon: ICONS.exportCrop },
     ],
   },
   {

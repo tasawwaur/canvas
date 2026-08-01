@@ -21,7 +21,8 @@ import { ProjectManager } from './core/ProjectManager';
 import { createDefaultProject } from './data/defaultProject';
 import { 
   exportToPNG, exportToJPEG, exportToPDF, 
-  projectToSvg, projectToDxf, projectToGeoJson, projectToCsv 
+  projectToSvg, projectToDxf, projectToGeoJson, projectToCsv,
+  renderProjectToOffscreenCanvas
 } from './lib/exporters';
 import './styles.css';
 
@@ -784,6 +785,49 @@ export const App: React.FC = () => {
     setViewport({ x: 0, y: 0, scale: 1 });
   };
 
+  const handleExportCropArea = (bounds: { minX: number; maxX: number; minY: number; maxY: number }) => {
+    const formatChoice = window.prompt(
+      "Choose Download Format for Selected Area:\n\n" +
+      "Type '1' to download as PNG Image\n" +
+      "Type '2' to download as JPEG Image\n" +
+      "Type '3' to download as PDF Document\n\n" +
+      "Enter option number (1, 2, or 3):",
+      "1"
+    );
+
+    if (!formatChoice) return;
+
+    const width = 8192;
+    const height = 6144;
+    const isPNG = formatChoice === '1';
+    const isJPEG = formatChoice === '2';
+    const isPDF = formatChoice === '3';
+
+    if (isPNG) {
+      renderProjectToOffscreenCanvas(project, width, height, project.settings.showGrid, true, undefined, false, bounds).then(offscreen => {
+        const link = document.createElement("a");
+        link.download = `${project.name}_crop.png`;
+        link.href = offscreen.toDataURL("image/png");
+        link.click();
+      });
+    } else if (isJPEG) {
+      renderProjectToOffscreenCanvas(project, width, height, project.settings.showGrid, true, undefined, false, bounds).then(offscreen => {
+        const link = document.createElement("a");
+        link.download = `${project.name}_crop.jpg`;
+        link.href = offscreen.toDataURL("image/jpeg", 0.95);
+        link.click();
+      });
+    } else if (isPDF) {
+      if (canvasRef) {
+        exportToPDF(project, canvasRef, {
+          paperSize: 'A4', orientation: 'landscape', scale: 100, fitToPage: true, showGrid: false, showDimensions: true, title: `${project.name}_crop`
+        }, undefined, bounds);
+      }
+    }
+    
+    setTool('select');
+  };
+
   const getViewportBounds = () => {
     const halfW = canvasSize.width / 2 / viewport.scale;
     const halfH = canvasSize.height / 2 / viewport.scale;
@@ -912,6 +956,7 @@ export const App: React.FC = () => {
               setCanvasSize({ width: canvas.width, height: canvas.height });
             }
           }}
+          onExportCropArea={handleExportCropArea}
         />
 
         <aside className="right-sidebar">

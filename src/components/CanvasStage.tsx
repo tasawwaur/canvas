@@ -57,6 +57,7 @@ type CanvasStageProps = {
   onCancelDraft: () => void;
   onCanvasReady?: (canvas: HTMLCanvasElement) => void;
   onMerge?: () => void;
+  onExportCropArea?: (bounds: { minX: number; maxX: number; minY: number; maxY: number }) => void;
 };
 
 export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
@@ -64,7 +65,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
     layers, features, viewport, tool, activeLayerId, selectedFeatureId, selectedFeatureIds,
     draft, settings, onViewportChange, onSelectFeature, onCommitFeature,
     onUpdateFeature, onCursorMove, onDraftChange, onFinishDraft,
-    onCancelDraft, onCanvasReady, onMerge
+    onCancelDraft, onCanvasReady, onMerge, onExportCropArea
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -617,6 +618,24 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         } else if (d.tool === 'rectangle') {
           const rect = normalizeRectangle(d.start, d.current);
           ctx.rect(rect.origin.x, rect.origin.y, rect.width, rect.height);
+        } else if (d.tool === 'exportCrop') {
+          const rect = normalizeRectangle(d.start, d.current);
+          ctx.save();
+          ctx.strokeStyle = '#22d3ee';
+          ctx.lineWidth = 2.5 / vp.scale;
+          ctx.setLineDash([8 / vp.scale, 4 / vp.scale]);
+          ctx.fillStyle = 'rgba(34, 211, 238, 0.12)';
+          ctx.beginPath();
+          ctx.rect(rect.origin.x, rect.origin.y, rect.width, rect.height);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#22d3ee';
+          ctx.font = `bold ${12 / vp.scale}px Inter, sans-serif`;
+          ctx.fillText("EXPORT CROP AREA", rect.origin.x + 6 / vp.scale, rect.origin.y - 6 / vp.scale);
+          ctx.restore();
+          // Reset path so following strokes don't draw
+          ctx.beginPath();
         } else if (d.tool === 'circle') {
           ctx.arc(d.start.x, d.start.y, distance(d.start, d.current), 0, Math.PI * 2);
         }
@@ -983,7 +1002,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
       return;
     }
 
-    if (['line', 'rectangle', 'circle', 'divider'].includes(t)) {
+    if (['line', 'rectangle', 'circle', 'divider', 'exportCrop'].includes(t)) {
       onDraftChange({ tool: t, start: snapped, current: snapped });
       return;
     }
@@ -1176,6 +1195,17 @@ export const CanvasStage: React.FC<CanvasStageProps> = (props) => {
         } else {
           onSelectFeature(null);
         }
+      } else if (tool === 'exportCrop') {
+        const x1 = Math.min(start.x, current.x);
+        const y1 = Math.min(start.y, current.y);
+        const x2 = Math.max(start.x, current.x);
+        const y2 = Math.max(start.y, current.y);
+        if (Math.abs(x2 - x1) > 1 && Math.abs(y2 - y1) > 1) {
+          if (onExportCropArea) {
+            onExportCropArea({ minX: x1, maxX: x2, minY: y1, maxY: y2 });
+          }
+        }
+        onFinishDraft();
       } else if (tool === 'divider') {
         // Bright red divider line — split intersecting polygons
         features.forEach(f => {

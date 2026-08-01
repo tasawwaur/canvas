@@ -39,7 +39,8 @@ export type Tool =
   | "park"
   | "school"
   | "temple"
-  | "mosque";
+  | "mosque"
+  | "exportCrop";
 
 /** Plot availability status */
 export type PlotStatus = "available" | "sold" | "booked";
@@ -256,7 +257,7 @@ export type SavedProjectInfo = {
 
 export type DraftState =
   | {
-      tool: "line" | "rectangle" | "circle" | "point" | "label" | "arrow";
+      tool: "line" | "rectangle" | "circle" | "point" | "label" | "arrow" | "exportCrop";
       start: Point;
       current: Point;
       text?: string;
