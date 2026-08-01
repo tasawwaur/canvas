@@ -131,11 +131,46 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
               fontSize: '14px',
               outline: 'none',
               boxSizing: 'border-box',
-              marginBottom: '14px',
+              marginBottom: '10px',
               textAlign: 'center',
               letterSpacing: '1px'
             }}
           />
+
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+            <button
+              type="button"
+              onClick={() => setLicenseKey(TRIAL_7DAY_KEY)}
+              style={{
+                flex: 1,
+                padding: '6px 8px',
+                backgroundColor: '#374151',
+                color: '#60a5fa',
+                border: '1px solid #4b5563',
+                borderRadius: '6px',
+                fontSize: '11px',
+                cursor: 'pointer'
+              }}
+            >
+              Fill 7-Day Demo Key
+            </button>
+            <button
+              type="button"
+              onClick={() => setLicenseKey(MASTER_KEY)}
+              style={{
+                flex: 1,
+                padding: '6px 8px',
+                backgroundColor: '#374151',
+                color: '#34d399',
+                border: '1px solid #4b5563',
+                borderRadius: '6px',
+                fontSize: '11px',
+                cursor: 'pointer'
+              }}
+            >
+              Fill Admin Key
+            </button>
+          </div>
 
           {errorMsg && (
             <div style={{ 
