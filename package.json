@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "postinstall": "chmod +x ./node_modules/.bin/vite ./node_modules/.bin/tsc",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
